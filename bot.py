@@ -300,6 +300,8 @@ async def comandos(ctx):
         'AMBIaddmem [categoria]', 'AMBIcategorias', 'AMBIrareza',
         'AMBIperro', 'AMBIroll', 'AMBIchoose', 'AMBIrepeat',
         'AMBIjoined', 'AMBIcool', 'AMBIcomandos',
+        # Nuevos comandos agregados
+        'AMBIhuella <km>', 'AMBIreto', 'AMBIeco',
     ]
     await ctx.send('Comandos disponibles:\n' + '\n'.join(lista))
 
@@ -434,6 +436,62 @@ async def cool(ctx, member: discord.Member = None):
     """Dice si un usuario es cool."""
     member = member or ctx.author
     await ctx.send(f'{member.display_name} es cool.')
+
+
+# ==========================================
+# NUEVOS COMANDOS AGREGADOS
+# ==========================================
+
+@bot.command()
+async def huella(ctx):
+    """Calcula una huella de carbono aproximada segun los km en auto."""
+    try:
+        km = float(ctx.message.content.split()[1])
+    except (IndexError, ValueError):
+        await ctx.send('Uso correcto: `AMBIhuella <km_recorridos>` (ej: `AMBIhuella 50`)')
+        return
+
+    # Aproximacion: 0.12 kg de CO2 por km en auto promedio
+    co2 = km * 0.12
+    await ctx.send(
+        f'🚗 Recorrer **{km} km** en auto genera aproximadamente '
+        f'**{co2:.2f} kg de CO₂**. 🌍\n'
+        f'💡 Tip: caminar, usar bici o transporte público reduce esta huella.'
+    )
+
+
+@bot.command()
+async def reto(ctx):
+    """Propone un reto ecologico aleatorio para el dia de hoy."""
+    retos = [
+        '🚰 Hoy intenta cerrar el grifo mientras te cepillas los dientes.',
+        '🛍️ Lleva tu propia bolsa de tela al supermercado.',
+        '💡 Apaga las luces que no estés usando en casa.',
+        '🚶 Reemplaza un viaje corto en auto por caminar o usar la bici.',
+        '♻️ Separa tus residuos en orgánico, plástico y papel.',
+        '🥤 Lleva tu botella reutilizable en lugar de comprar botellas de plástico.',
+        '🌳 Planta una semilla o cuida una planta en tu casa.',
+    ]
+    reto_elegido = random.choice(retos)
+    await ctx.send(f'🌟 **Reto ecológico del día:**\n{reto_elegido}')
+
+
+@bot.command(name='eco')
+async def dato_eco(ctx):
+    """Muestra un dato curioso aleatorio sobre el medio ambiente."""
+    datos = [
+        '🌳 Un árbol adulto puede absorber hasta 22 kg de CO₂ al año.',
+        '🌊 Los océanos producen más del 50% del oxígeno que respiramos.',
+        '💧 Solo el 0.3% del agua del planeta es potable y accesible.',
+        '🐝 Las abejas polinizan el 70% de los cultivos que alimentan al mundo.',
+        '♻️ Reciclar una lata de aluminio ahorra energía suficiente para una TV por 3 horas.',
+        '🌡️ El último decenio fue el más cálido registrado en la historia.',
+    ]
+    await ctx.send(f'🌍 **¿Sabías que...?**\n{random.choice(datos)}')
+
+
+if __name__ == '__main__':
+    bot.run(TOKEN, log_handler=None)
 
 
 if __name__ == '__main__':
