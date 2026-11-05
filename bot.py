@@ -531,7 +531,7 @@ async def reto(ctx):
 @bot.command(name='eco')
 async def dato_eco(ctx):
     """Muestra un dato curioso aleatorio sobre el medio ambiente."""
-    datos = [
+    datos_eco = [
         '🌳 Un árbol adulto puede absorber hasta 22 kg de CO₂ al año.',
         '🌊 Los océanos producen más del 50% del oxígeno que respiramos.',
         '💧 Solo el 0.3% del agua del planeta es potable y accesible.',
@@ -539,7 +539,7 @@ async def dato_eco(ctx):
         '♻️ Reciclar una lata de aluminio ahorra energía suficiente para una TV por 3 horas.',
         '🌡️ El último decenio fue el más cálido registrado en la historia.',
     ]
-    await ctx.send(f'🌍 **¿Sabías que...?**\n{random.choice(datos)}')
+    await ctx.send(f'🌍 **¿Sabías que...?**\n{random.choice(datos_eco)}')
 
 
 # ==========================================
@@ -619,9 +619,5 @@ async def before_recordatorio():
 # ==========================================
 # INICIAR EL BOT
 # ==========================================
-if __name__ == '__main__':
-    bot.run(TOKEN, log_handler=None)
-
-
 if __name__ == '__main__':
     bot.run(TOKEN, log_handler=None)
