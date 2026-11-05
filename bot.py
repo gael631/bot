@@ -22,7 +22,7 @@ STATS_FILE = BASE_DIR / "stats.json"
 PUNTOS_FILE = BASE_DIR / "puntos.json"
 
 # ⚠️ IMPORTANTE: Reemplaza este número con el ID real de tu canal de Discord
-CANAL_RECORDATORIOS_ID = 123456789012345678 
+CANAL_RECORDATORIOS_ID = 1557546192328466464
 
 EXTENSIONES = {'.jpg', '.jpeg', '.png', '.gif', '.webp'}
 
