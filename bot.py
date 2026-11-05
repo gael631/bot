@@ -6,7 +6,7 @@ import logging
 from pathlib import Path
 
 import discord
-from discord.ext import commands
+from discord.ext import commands, tasks
 from dotenv import load_dotenv
 import aiohttp
 
@@ -16,6 +16,13 @@ IMAGES_DIR.mkdir(exist_ok=True)
 
 RAREZA_FILE = BASE_DIR / "rareza.json"
 PESO_POR_DEFECTO = 1.0
+
+# Archivos para las nuevas funcionalidades del backlog
+STATS_FILE = BASE_DIR / "stats.json"
+PUNTOS_FILE = BASE_DIR / "puntos.json"
+
+# ⚠️ IMPORTANTE: Reemplaza este número con el ID real de tu canal de Discord
+CANAL_RECORDATORIOS_ID = 123456789012345678 
 
 EXTENSIONES = {'.jpg', '.jpeg', '.png', '.gif', '.webp'}
 
@@ -110,6 +117,39 @@ def elegir(opciones: list[str]) -> str:
     return random.choice(opciones)
 
 
+# --- Funciones para el Backlog ---
+def cargar_stats() -> dict:
+    if not STATS_FILE.exists():
+        return {}
+    try:
+        return json.loads(STATS_FILE.read_text(encoding='utf-8'))
+    except (json.JSONDecodeError, OSError):
+        return {}
+
+
+def guardar_stats(stats: dict) -> None:
+    try:
+        STATS_FILE.write_text(json.dumps(stats, indent=2, ensure_ascii=False), encoding='utf-8')
+    except OSError:
+        log.exception('No se pudieron guardar las estadísticas')
+
+
+def cargar_puntos() -> dict:
+    if not PUNTOS_FILE.exists():
+        return {}
+    try:
+        return json.loads(PUNTOS_FILE.read_text(encoding='utf-8'))
+    except (json.JSONDecodeError, OSError):
+        return {}
+
+
+def guardar_puntos(puntos: dict) -> None:
+    try:
+        PUNTOS_FILE.write_text(json.dumps(puntos, indent=2, ensure_ascii=False), encoding='utf-8')
+    except OSError:
+        log.exception('No se pudieron guardar los puntos')
+
+
 @bot.event
 async def on_ready():
     log.info('Conectado como %s (id=%s)', bot.user, bot.user.id)
@@ -118,6 +158,10 @@ async def on_ready():
         await bot.tree.sync()
     except Exception as e:
         log.warning('No se pudieron sincronizar los slash commands: %s', e)
+    
+    # Iniciar la tarea de recordatorio diario
+    if not recordatorio_diario.is_running():
+        recordatorio_diario.start()
 
 
 @bot.event
@@ -129,6 +173,15 @@ async def on_command_error(ctx, error):
         return
     log.exception('Error en comando %s', ctx.command, exc_info=error)
     await ctx.send('Ocurrio un error procesando el comando.')
+
+
+@bot.event
+async def on_command_completion(ctx):
+    """Registra cada vez que un comando se usa correctamente."""
+    stats = cargar_stats()
+    nombre = ctx.command.name
+    stats[nombre] = stats.get(nombre, 0) + 1
+    guardar_stats(stats)
 
 
 @bot.command()
@@ -300,8 +353,9 @@ async def comandos(ctx):
         'AMBIaddmem [categoria]', 'AMBIcategorias', 'AMBIrareza',
         'AMBIperro', 'AMBIroll', 'AMBIchoose', 'AMBIrepeat',
         'AMBIjoined', 'AMBIcool', 'AMBIcomandos',
-        # Nuevos comandos agregados
         'AMBIhuella <km>', 'AMBIreto', 'AMBIeco',
+        # Nuevos comandos del backlog
+        'AMBIstats', 'AMBIperfil', 'AMBIreto2',
     ]
     await ctx.send('Comandos disponibles:\n' + '\n'.join(lista))
 
@@ -439,7 +493,7 @@ async def cool(ctx, member: discord.Member = None):
 
 
 # ==========================================
-# NUEVOS COMANDOS AGREGADOS
+# COMANDOS ANTERIORES (ASIGNACIÓN ESPECIAL)
 # ==========================================
 
 @bot.command()
@@ -451,7 +505,6 @@ async def huella(ctx):
         await ctx.send('Uso correcto: `AMBIhuella <km_recorridos>` (ej: `AMBIhuella 50`)')
         return
 
-    # Aproximacion: 0.12 kg de CO2 por km en auto promedio
     co2 = km * 0.12
     await ctx.send(
         f'🚗 Recorrer **{km} km** en auto genera aproximadamente '
@@ -472,8 +525,7 @@ async def reto(ctx):
         '🥤 Lleva tu botella reutilizable en lugar de comprar botellas de plástico.',
         '🌳 Planta una semilla o cuida una planta en tu casa.',
     ]
-    reto_elegido = random.choice(retos)
-    await ctx.send(f'🌟 **Reto ecológico del día:**\n{reto_elegido}')
+    await ctx.send(f'🌟 **Reto ecológico del día:**\n{random.choice(retos)}')
 
 
 @bot.command(name='eco')
@@ -490,6 +542,83 @@ async def dato_eco(ctx):
     await ctx.send(f'🌍 **¿Sabías que...?**\n{random.choice(datos)}')
 
 
+# ==========================================
+# NUEVAS MEJORAS DEL BACKLOG
+# ==========================================
+
+@bot.command(name='stats')
+async def ver_stats(ctx):
+    """Muestra cuántas veces se ha usado cada comando."""
+    stats = cargar_stats()
+    if not stats:
+        await ctx.send('Todavía no hay estadísticas de uso.')
+        return
+    ordenados = sorted(stats.items(), key=lambda x: x[1], reverse=True)
+    lineas = [f'- `AMBI{nombre}`: {usos} usos' for nombre, usos in ordenados]
+    texto = '📊 **Estadísticas de uso:**\n' + '\n'.join(lineas)
+    if len(texto) > 1900:
+        texto = texto[:1900] + '\n... (truncado)'
+    await ctx.send(texto)
+
+
+@bot.command(name='reto2')
+async def reto_con_puntos(ctx):
+    """Reto ecológico que otorga 10 puntos verdes al completarlo."""
+    retos = [
+        '🚰 Hoy intenta cerrar el grifo mientras te cepillas los dientes.',
+        '🛍️ Lleva tu propia bolsa de tela al supermercado.',
+        '💡 Apaga las luces que no estés usando en casa.',
+        '🚶 Reemplaza un viaje corto en auto por caminar o usar la bici.',
+        '♻️ Separa tus residuos en orgánico, plástico y papel.',
+    ]
+    reto = random.choice(retos)
+    puntos = cargar_puntos()
+    user_id = str(ctx.author.id)
+    puntos[user_id] = puntos.get(user_id, 0) + 10
+    guardar_puntos(puntos)
+    await ctx.send(
+        f'🌟 **Reto ecológico:**\n{reto}\n'
+        f'✅ Has ganado **10 puntos verdes** {ctx.author.mention}. '
+        f'Total: **{puntos[user_id]} puntos**. Usa `AMBIperfil` para verlos.'
+    )
+
+
+@bot.command(name='perfil')
+async def ver_perfil(ctx):
+    """Muestra los puntos verdes del usuario."""
+    puntos = cargar_puntos()
+    user_id = str(ctx.author.id)
+    total = puntos.get(user_id, 0)
+    await ctx.send(
+        f'🌱 **Perfil verde de {ctx.author.display_name}**\n'
+        f'Puntos verdes: **{total}**'
+    )
+
+
+@tasks.loop(hours=24)
+async def recordatorio_diario():
+    """Envía un reto ecológico automático a un canal específico."""
+    canal = bot.get_channel(CANAL_RECORDATORIOS_ID)
+    if canal is None:
+        log.warning('No se encontró el canal de recordatorios. Revisa CANAL_RECORDATORIOS_ID')
+        return
+    retos = [
+        '🌱 Reto de hoy: apaga los aparatos que no uses.',
+        '💧 Reto de hoy: cierra el grifo al cepillarte los dientes.',
+        '🚶 Reto de hoy: camina en lugar de usar el auto para distancias cortas.',
+        '♻️ Reto de hoy: separa tus residuos correctamente.',
+    ]
+    await canal.send('🌟 **Reto ecológico del día** 🌟\n' + random.choice(retos))
+
+
+@recordatorio_diario.before_loop
+async def before_recordatorio():
+    await bot.wait_until_ready()
+
+
+# ==========================================
+# INICIAR EL BOT
+# ==========================================
 if __name__ == '__main__':
     bot.run(TOKEN, log_handler=None)
 
